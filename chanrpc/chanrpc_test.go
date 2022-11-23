@@ -1,5 +1,0 @@
-package chanrpc
-
-func Example() {
-
-}
