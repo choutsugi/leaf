@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	g "github.com/choutsugi/forest/go"
+	"github.com/choutsugi/forest/go"
 	"testing"
 	"time"
 )
