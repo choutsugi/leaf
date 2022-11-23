@@ -2,7 +2,7 @@ package module
 
 import (
 	"github.com/choutsugi/forest/chanrpc"
-	g2 "github.com/choutsugi/forest/go"
+	g "github.com/choutsugi/forest/go"
 	"github.com/choutsugi/forest/log"
 	"github.com/choutsugi/forest/timer"
 	"time"
@@ -12,7 +12,7 @@ type Skeleton struct {
 	GoLen              int
 	TimerDispatcherLen int
 	ChanRPCServer      *chanrpc.Server
-	g                  *g2.g
+	g                  *g.Go
 	dispatcher         *timer.Dispatcher
 	server             *chanrpc.Server
 	commandServer      *chanrpc.Server
@@ -26,7 +26,7 @@ func (s *Skeleton) Init() {
 		s.TimerDispatcherLen = 0
 	}
 
-	s.g = g2.g.New(s.GoLen)
+	s.g = g.New(s.GoLen)
 	s.dispatcher = timer.NewDispatcher(s.TimerDispatcherLen)
 	s.server = s.ChanRPCServer
 
@@ -86,7 +86,7 @@ func (s *Skeleton) Go(f func(), cb func()) {
 	s.g.Go(f, cb)
 }
 
-func (s *Skeleton) NewLinearContext() *g2.g {
+func (s *Skeleton) NewLinearContext() *g.LinearContext {
 	if s.GoLen == 0 {
 		panic("invalid GoLen")
 	}
