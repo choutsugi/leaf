@@ -5,7 +5,6 @@ import (
 	"container/list"
 	"encoding/binary"
 	"fmt"
-	"github.com/choutsugi/forest/kcp"
 	"math/rand"
 	"testing"
 	"time"

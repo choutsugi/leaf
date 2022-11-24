@@ -1,8 +1,9 @@
 package network
 
 import (
-	"github.com/choutsugi/forest/kcp"
 	"github.com/choutsugi/forest/log"
+	"github.com/xtaci/kcp-go"
+
 	"sync"
 )
 
@@ -21,7 +22,8 @@ func (server *UDPServer) Start() {
 }
 
 func (server *UDPServer) init() {
-	ln, err := kcp.Listen(kcp.MODE_NORMAL, server.Addr)
+
+	ln, err := kcp.Listen(server.Addr)
 	if err != nil {
 		log.Fatal("%v", err)
 	}
@@ -34,8 +36,11 @@ func (server *UDPServer) init() {
 		log.Fatal("NewAgent must not be nil")
 	}
 
-	server.ln = ln
-
+	// config listener
+	server.ln = ln.(*kcp.Listener)
+	server.ln.SetReadBuffer(4 * 1024 * 1024)
+	server.ln.SetWriteBuffer(4 * 1024 * 1024)
+	server.ln.SetDSCP(46)
 }
 
 func (server *UDPServer) run() {
@@ -48,13 +53,24 @@ func (server *UDPServer) run() {
 			log.Release("accept error: %v", err)
 			return
 		}
-		if server.ln.SessionCount() >= server.MaxConnNum {
-			conn.Close()
-			log.Debug("too many connections")
-			continue
-		}
 
-		agent := server.NewAgent(conn)
+		// TODO：kcp-go未提供获取已有连接数量的方法
+		//if server.ln.SessionCount() >= server.MaxConnNum {
+		//	conn.Close()
+		//	log.Debug("too many connections")
+		//	continue
+		//}
+
+		// config sess
+		sess := conn.(*kcp.UDPSession)
+		sess.SetReadBuffer(4 * 1024 * 1024)
+		sess.SetWriteBuffer(4 * 1024 * 1024)
+		sess.SetWindowSize(4096, 4096)
+		sess.SetWriteDelay(true)
+		sess.SetACKNoDelay(false)
+		sess.SetNoDelay(1, 100, 2, 0)
+
+		agent := server.NewAgent(sess)
 
 		go func() {
 			agent.Run()

@@ -2,9 +2,9 @@ package gate
 
 import (
 	"github.com/choutsugi/forest/chanrpc"
-	"github.com/choutsugi/forest/kcp"
 	"github.com/choutsugi/forest/log"
 	"github.com/choutsugi/forest/network"
+	"github.com/xtaci/kcp-go"
 	"reflect"
 	"time"
 )

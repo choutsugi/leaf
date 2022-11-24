@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"github.com/choutsugi/forest/kcp"
 	"sync"
 	"testing"
 	"time"
