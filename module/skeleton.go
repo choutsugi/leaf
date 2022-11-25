@@ -1,19 +1,21 @@
 package module
 
 import (
-	"github.com/choutsugi/forest/chanrpc"
-	g "github.com/choutsugi/forest/go"
-	"github.com/choutsugi/forest/log"
-	"github.com/choutsugi/forest/timer"
+	"github.com/choutsugi/leaf/chanrpc"
+	"github.com/choutsugi/leaf/console"
+	g "github.com/choutsugi/leaf/go"
+	"github.com/choutsugi/leaf/timer"
 	"time"
 )
 
 type Skeleton struct {
 	GoLen              int
 	TimerDispatcherLen int
+	AsynCallLen        int
 	ChanRPCServer      *chanrpc.Server
 	g                  *g.Go
 	dispatcher         *timer.Dispatcher
+	client             *chanrpc.Client
 	server             *chanrpc.Server
 	commandServer      *chanrpc.Server
 }
@@ -25,9 +27,13 @@ func (s *Skeleton) Init() {
 	if s.TimerDispatcherLen <= 0 {
 		s.TimerDispatcherLen = 0
 	}
+	if s.AsynCallLen <= 0 {
+		s.AsynCallLen = 0
+	}
 
 	s.g = g.New(s.GoLen)
 	s.dispatcher = timer.NewDispatcher(s.TimerDispatcherLen)
+	s.client = chanrpc.NewClient(s.AsynCallLen)
 	s.server = s.ChanRPCServer
 
 	if s.server == nil {
@@ -42,18 +48,17 @@ func (s *Skeleton) Run(closeSig chan bool) {
 		case <-closeSig:
 			s.commandServer.Close()
 			s.server.Close()
-			s.g.Close()
+			for !s.g.Idle() || !s.client.Idle() {
+				s.g.Close()
+				s.client.Close()
+			}
 			return
+		case ri := <-s.client.ChanAsyncRet:
+			s.client.Cb(ri)
 		case ci := <-s.server.ChanCall:
-			err := s.server.Exec(ci)
-			if err != nil {
-				log.Error("%v", err)
-			}
+			s.server.Exec(ci)
 		case ci := <-s.commandServer.ChanCall:
-			err := s.commandServer.Exec(ci)
-			if err != nil {
-				log.Error("%v", err)
-			}
+			s.commandServer.Exec(ci)
 		case cb := <-s.g.ChanCb:
 			s.g.Cb(cb)
 		case t := <-s.dispatcher.ChanTimer:
@@ -94,10 +99,23 @@ func (s *Skeleton) NewLinearContext() *g.LinearContext {
 	return s.g.NewLinearContext()
 }
 
+func (s *Skeleton) AsyncCall(server *chanrpc.Server, id interface{}, args ...interface{}) {
+	if s.AsynCallLen == 0 {
+		panic("invalid AsyncCallLen")
+	}
+
+	s.client.Attach(server)
+	s.client.AsyncCall(id, args...)
+}
+
 func (s *Skeleton) RegisterChanRPC(id interface{}, f interface{}) {
 	if s.ChanRPCServer == nil {
 		panic("invalid ChanRPCServer")
 	}
 
 	s.server.Register(id, f)
+}
+
+func (s *Skeleton) RegisterCommand(name string, help string, f interface{}) {
+	console.Register(name, help, f, s.commandServer)
 }

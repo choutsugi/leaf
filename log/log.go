@@ -31,7 +31,7 @@ type Logger struct {
 	baseFile   *os.File
 }
 
-func New(strLevel string, pathname string) (*Logger, error) {
+func New(strLevel string, pathname string, flag int) (*Logger, error) {
 	// level
 	var level int
 	switch strings.ToLower(strLevel) {
@@ -66,10 +66,10 @@ func New(strLevel string, pathname string) (*Logger, error) {
 			return nil, err
 		}
 
-		baseLogger = log.New(file, "", log.LstdFlags)
+		baseLogger = log.New(file, "", flag)
 		baseFile = file
 	} else {
-		baseLogger = log.New(os.Stdout, "", log.LstdFlags)
+		baseLogger = log.New(os.Stdout, "", flag)
 	}
 
 	// new
@@ -99,8 +99,9 @@ func (logger *Logger) doPrintf(level int, printLevel string, format string, a ..
 		panic("logger closed")
 	}
 
-	format = printLevel + format
-	logger.baseLogger.Printf(format, a...)
+	curTime := time.Now().Format("2006-01-02 15:04:05.000000")
+	format = fmt.Sprintf("%s%s %s", printLevel, curTime, format)
+	logger.baseLogger.Output(3, fmt.Sprintf(format, a...))
 
 	if level == fatalLevel {
 		os.Exit(1)
@@ -123,7 +124,7 @@ func (logger *Logger) Fatal(format string, a ...interface{}) {
 	logger.doPrintf(fatalLevel, printFatalLevel, format, a...)
 }
 
-var gLogger, _ = New("debug", "")
+var gLogger, _ = New("debug", "", log.LstdFlags)
 
 // Export It's dangerous to call the method on logging
 func Export(logger *Logger) {
@@ -133,19 +134,19 @@ func Export(logger *Logger) {
 }
 
 func Debug(format string, a ...interface{}) {
-	gLogger.Debug(format, a...)
+	gLogger.doPrintf(debugLevel, printDebugLevel, format, a...)
 }
 
 func Release(format string, a ...interface{}) {
-	gLogger.Release(format, a...)
+	gLogger.doPrintf(releaseLevel, printReleaseLevel, format, a...)
 }
 
 func Error(format string, a ...interface{}) {
-	gLogger.Error(format, a...)
+	gLogger.doPrintf(errorLevel, printErrorLevel, format, a...)
 }
 
 func Fatal(format string, a ...interface{}) {
-	gLogger.Fatal(format, a...)
+	gLogger.doPrintf(fatalLevel, printFatalLevel, format, a...)
 }
 
 func Close() {

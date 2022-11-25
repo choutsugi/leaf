@@ -1,4 +1,4 @@
-package forest
+package leaf
 
 import (
 	"github.com/choutsugi/forest/conf"

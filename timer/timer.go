@@ -1,8 +1,8 @@
 package timer
 
 import (
-	"github.com/choutsugi/forest/conf"
-	"github.com/choutsugi/forest/log"
+	"github.com/choutsugi/leaf/conf"
+	"github.com/choutsugi/leaf/log"
 	"runtime"
 	"time"
 )

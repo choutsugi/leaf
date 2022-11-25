@@ -1,10 +1,11 @@
 package gate
 
 import (
-	"github.com/choutsugi/forest/chanrpc"
-	"github.com/choutsugi/forest/log"
-	"github.com/choutsugi/forest/network"
+	"github.com/choutsugi/leaf/chanrpc"
+	"github.com/choutsugi/leaf/log"
+	"github.com/choutsugi/leaf/network"
 	"github.com/xtaci/kcp-go"
+	"net"
 	"reflect"
 	"time"
 )
@@ -16,18 +17,31 @@ type Gate struct {
 	Processor    network.Processor
 	AgentChanRPC *chanrpc.Server
 
+	// websocket
+	WSAddr      string
+	HTTPTimeout time.Duration
+	CertFile    string
+	KeyFile     string
+
 	//udp
 	UDPAddr string
+
+	//tcp
+	TCPAddr string
 
 	// msg parser
 	LenMsgLen    int
 	MinMsgLen    uint32
 	MaxMsgLen    uint32
 	LittleEndian bool
-	MsgParser    *network.MsgParser
+	MsgParser    *network.UDPMsgParser // TODO：how to be compatible with tcp
 }
 
 func (gate *Gate) Run(closeSig chan bool) {
+
+	// TODO：WSServer
+
+	// TODO：TCPServer
 
 	var udpServer *network.UDPServer
 	if gate.UDPAddr != "" {
@@ -43,7 +57,7 @@ func (gate *Gate) Run(closeSig chan bool) {
 			return a
 		}
 		// msg parser
-		msgParser := network.NewMsgParser()
+		msgParser := network.NewUDPMsgParser()
 		msgParser.SetMsgLen(gate.LenMsgLen, gate.MinMsgLen, gate.MaxMsgLen)
 		msgParser.SetByteOrder(gate.LittleEndian)
 		gate.MsgParser = msgParser
@@ -85,7 +99,7 @@ func (a *agent) Run() {
 		// parse data
 		msgData, err := a.gate.MsgParser.ReadParse(buf[:n])
 		if err != nil {
-			log.Debug("read message MsgParser ReadParse: %v", err)
+			log.Debug("read message UDPMsgParser ReadParse: %v", err)
 			break
 		}
 
@@ -113,12 +127,12 @@ func (a *agent) OnClose() {
 	}
 }
 
-func (a *agent) Write(msg interface{}) {
+func (a *agent) WriteMsg(msg interface{}) {
 	switch msg.(type) {
 	case string:
 		msgData, err := a.gate.MsgParser.WriteParse([]byte(msg.(string)))
 		if err != nil {
-			log.Error("string message MsgParser WriteParse: %v", err)
+			log.Error("string message UDPMsgParser WriteParse: %v", err)
 			return
 		}
 		a.conn.Write(msgData)
@@ -131,7 +145,7 @@ func (a *agent) Write(msg interface{}) {
 			}
 			msgData, err := a.gate.MsgParser.WriteParse(data)
 			if err != nil {
-				log.Error("marshal message MsgParser WriteParse: %v", err)
+				log.Error("marshal message UDPMsgParser WriteParse: %v", err)
 				return
 			}
 			a.conn.Write(msgData)
@@ -139,8 +153,21 @@ func (a *agent) Write(msg interface{}) {
 	}
 }
 
+func (a *agent) LocalAddr() net.Addr {
+	return a.conn.LocalAddr()
+}
+
+func (a *agent) RemoteAddr() net.Addr {
+	return a.conn.RemoteAddr()
+}
+
 func (a *agent) Close() {
 	a.conn.Close()
+}
+
+func (a *agent) Destroy() {
+	// TODO：how to process kcp destroy
+	//a.conn.Destroy()
 }
 
 func (a *agent) UserData() interface{} {

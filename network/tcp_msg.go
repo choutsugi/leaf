@@ -3,22 +3,23 @@ package network
 import (
 	"encoding/binary"
 	"errors"
+	"io"
 	"math"
 )
 
-// UDPMsgParser
+// TCPMsgParser
 // --------------
 // | len | data |
 // --------------
-type UDPMsgParser struct {
+type TCPMsgParser struct {
 	lenMsgLen    int
 	minMsgLen    uint32
 	maxMsgLen    uint32
 	littleEndian bool
 }
 
-func NewUDPMsgParser() *UDPMsgParser {
-	p := new(UDPMsgParser)
+func NewTCPMsgParser() *TCPMsgParser {
+	p := new(TCPMsgParser)
 	p.lenMsgLen = 2
 	p.minMsgLen = 1
 	p.maxMsgLen = 4096
@@ -28,7 +29,7 @@ func NewUDPMsgParser() *UDPMsgParser {
 }
 
 // SetMsgLen It's dangerous to call the method on reading or writing
-func (p *UDPMsgParser) SetMsgLen(lenMsgLen int, minMsgLen uint32, maxMsgLen uint32) {
+func (p *TCPMsgParser) SetMsgLen(lenMsgLen int, minMsgLen uint32, maxMsgLen uint32) {
 	if lenMsgLen == 1 || lenMsgLen == 2 || lenMsgLen == 4 {
 		p.lenMsgLen = lenMsgLen
 	}
@@ -57,16 +58,19 @@ func (p *UDPMsgParser) SetMsgLen(lenMsgLen int, minMsgLen uint32, maxMsgLen uint
 }
 
 // SetByteOrder It's dangerous to call the method on reading or writing
-func (p *UDPMsgParser) SetByteOrder(littleEndian bool) {
+func (p *TCPMsgParser) SetByteOrder(littleEndian bool) {
 	p.littleEndian = littleEndian
 }
 
-// ReadParse goroutine safe
-func (p *UDPMsgParser) ReadParse(data []byte) ([]byte, error) {
+// goroutine safe
+func (p *TCPMsgParser) Read(conn *TCPConn) ([]byte, error) {
 	var b [4]byte
 	bufMsgLen := b[:p.lenMsgLen]
 
-	copy(bufMsgLen, data)
+	// read len
+	if _, err := io.ReadFull(conn, bufMsgLen); err != nil {
+		return nil, err
+	}
 
 	// parse len
 	var msgLen uint32
@@ -96,22 +100,26 @@ func (p *UDPMsgParser) ReadParse(data []byte) ([]byte, error) {
 
 	// data
 	msgData := make([]byte, msgLen)
-
-	copy(msgData, data[p.lenMsgLen:])
+	if _, err := io.ReadFull(conn, msgData); err != nil {
+		return nil, err
+	}
 
 	return msgData, nil
 }
 
-// WriteParse goroutine safe
-func (p *UDPMsgParser) WriteParse(data []byte) ([]byte, error) {
+// goroutine safe
+func (p *TCPMsgParser) Write(conn *TCPConn, args ...[]byte) error {
 	// get len
-	var msgLen uint32 = uint32(len(data))
+	var msgLen uint32
+	for i := 0; i < len(args); i++ {
+		msgLen += uint32(len(args[i]))
+	}
 
 	// check len
 	if msgLen > p.maxMsgLen {
-		return nil, errors.New("message too long")
+		return errors.New("message too long")
 	} else if msgLen < p.minMsgLen {
-		return nil, errors.New("message too short")
+		return errors.New("message too short")
 	}
 
 	msg := make([]byte, uint32(p.lenMsgLen)+msgLen)
@@ -136,7 +144,12 @@ func (p *UDPMsgParser) WriteParse(data []byte) ([]byte, error) {
 
 	// write data
 	l := p.lenMsgLen
-	copy(msg[l:], data)
+	for i := 0; i < len(args); i++ {
+		copy(msg[l:], args[i])
+		l += len(args[i])
+	}
 
-	return msg, nil
+	conn.Write(msg)
+
+	return nil
 }

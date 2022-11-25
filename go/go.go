@@ -2,8 +2,8 @@ package g
 
 import (
 	"container/list"
-	"github.com/choutsugi/forest/conf"
-	"github.com/choutsugi/forest/log"
+	"github.com/choutsugi/leaf/conf"
+	"github.com/choutsugi/leaf/log"
 	"runtime"
 	"sync"
 )
@@ -76,6 +76,10 @@ func (g *Go) Close() {
 	for g.pendingGo > 0 {
 		g.Cb(<-g.ChanCb)
 	}
+}
+
+func (g *Go) Idle() bool {
+	return g.pendingGo == 0
 }
 
 func (g *Go) NewLinearContext() *LinearContext {

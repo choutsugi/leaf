@@ -51,6 +51,7 @@ func New(st interface{}) (*RecordFile, error) {
 		case reflect.Struct:
 		case reflect.Array:
 		case reflect.Slice:
+		case reflect.Map:
 		default:
 			return nil, fmt.Errorf("invalid type: %v %s",
 				f.Name, kind)
@@ -59,7 +60,7 @@ func New(st interface{}) (*RecordFile, error) {
 		tag := f.Tag
 		if tag == "index" {
 			switch kind {
-			case reflect.Struct, reflect.Array, reflect.Slice:
+			case reflect.Struct, reflect.Slice, reflect.Map:
 				return nil, fmt.Errorf("could not index %s field %v %v",
 					kind, i, f.Name)
 			}
@@ -99,7 +100,7 @@ func (rf *RecordFile) Read(name string) error {
 	records := make([]interface{}, len(lines)-1)
 
 	// make indexes
-	var indexes []Index
+	indexes := []Index{}
 	for i := 0; i < typeRecord.NumField(); i++ {
 		tag := typeRecord.Field(i).Tag
 		if tag == "index" {
@@ -114,7 +115,7 @@ func (rf *RecordFile) Read(name string) error {
 
 		line := lines[n]
 		if len(line) != typeRecord.NumField() {
-			return fmt.Errorf("line %v, field count mismatch: %v %v",
+			return fmt.Errorf("line %v, field count mismatch: %v (file) %v (st)",
 				n, len(line), typeRecord.NumField())
 		}
 
@@ -170,7 +171,8 @@ func (rf *RecordFile) Read(name string) error {
 				field.SetString(strField)
 			} else if kind == reflect.Struct ||
 				kind == reflect.Array ||
-				kind == reflect.Slice {
+				kind == reflect.Slice ||
+				kind == reflect.Map {
 				err = json.Unmarshal([]byte(strField), field.Addr().Interface())
 			}
 

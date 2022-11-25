@@ -1,9 +1,8 @@
 package network
 
 import (
-	"github.com/choutsugi/forest/log"
+	"github.com/choutsugi/leaf/log"
 	"github.com/xtaci/kcp-go"
-
 	"sync"
 )
 

@@ -1,8 +1,13 @@
 package gate
 
+import "net"
+
 type Agent interface {
-	Write(msg interface{})
+	WriteMsg(msg interface{})
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 	Close()
+	Destroy()
 	UserData() interface{}
 	SetUserData(data interface{})
 }
